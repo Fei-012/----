@@ -12,53 +12,14 @@ struct PetDefinition {
 final class PetImageView: NSImageView {
     weak var petWindow: NSWindow?
     var onPress: (() -> Void)?
-    private var mouseDownLocation: NSPoint?
-    private var windowOriginOnMouseDown: NSPoint?
 
     override func mouseDown(with event: NSEvent) {
-        mouseDownLocation = event.locationInWindow
-        windowOriginOnMouseDown = petWindow?.frame.origin
+        petWindow?.performDrag(with: event)
     }
 
-    override func mouseDragged(with event: NSEvent) {
-        guard
-            let petWindow,
-            let mouseDownLocation,
-            let windowOriginOnMouseDown
-        else {
-            return
-        }
-
-        let currentLocation = event.locationInWindow
-        let deltaX = currentLocation.x - mouseDownLocation.x
-        let deltaY = currentLocation.y - mouseDownLocation.y
-
-        petWindow.setFrameOrigin(
-            NSPoint(
-                x: windowOriginOnMouseDown.x + deltaX,
-                y: windowOriginOnMouseDown.y + deltaY
-            )
-        )
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        defer {
-            mouseDownLocation = nil
-            windowOriginOnMouseDown = nil
-        }
-
-        guard let mouseDownLocation else {
-            return
-        }
-
-        let mouseUpLocation = event.locationInWindow
-        let deltaX = mouseUpLocation.x - mouseDownLocation.x
-        let deltaY = mouseUpLocation.y - mouseDownLocation.y
-        let dragDistance = hypot(deltaX, deltaY)
-
-        if dragDistance < 6 {
-            onPress?()
-        }
+    @objc
+    func handleClick() {
+        onPress?()
     }
 }
 
@@ -96,6 +57,11 @@ final class PetWindowController: NSWindowController {
         imageView.wantsLayer = true
         imageView.petWindow = window
         imageView.onPress = onPress
+
+        let clickGesture = NSClickGestureRecognizer(target: imageView, action: #selector(PetImageView.handleClick))
+        clickGesture.numberOfClicksRequired = 1
+        clickGesture.delaysPrimaryMouseButtonEvents = false
+        imageView.addGestureRecognizer(clickGesture)
 
         if let url = Bundle.main.url(forResource: pet.fileName, withExtension: nil) {
             imageView.image = NSImage(contentsOf: url)
@@ -142,8 +108,8 @@ final class SpeechBubbleContentView: NSView {
         textLabel.textColor = NSColor(calibratedRed: 0.17, green: 0.11, blue: 0.09, alpha: 1.0)
         textLabel.alignment = .center
         textLabel.lineBreakMode = .byWordWrapping
-        textLabel.maximumNumberOfLines = 3
-        textLabel.font = Self.pixelFont(size: 24)
+        textLabel.maximumNumberOfLines = 4
+        textLabel.font = Self.pixelFont(size: 34)
         textLabel.cell?.usesSingleLineMode = false
         textLabel.cell?.wraps = true
 
@@ -156,10 +122,10 @@ final class SpeechBubbleContentView: NSView {
             backgroundView.topAnchor.constraint(equalTo: topAnchor),
             backgroundView.bottomAnchor.constraint(equalTo: bottomAnchor),
 
-            textLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 74),
-            textLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -74),
-            textLabel.topAnchor.constraint(equalTo: topAnchor, constant: 72),
-            textLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -92)
+            textLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 120),
+            textLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -120),
+            textLabel.topAnchor.constraint(equalTo: topAnchor, constant: 122),
+            textLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -130)
         ])
     }
 
@@ -224,7 +190,7 @@ final class SpeechBubbleWindowController: NSWindowController {
     private let bubbleContentView: SpeechBubbleContentView
 
     init() {
-        let size = NSSize(width: 520, height: 310)
+        let size = NSSize(width: 760, height: 520)
         let rect = NSRect(origin: .zero, size: size)
         let window = NSPanel(
             contentRect: rect,
@@ -259,7 +225,7 @@ final class SpeechBubbleWindowController: NSWindowController {
         let visibleFrame = targetScreen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let origin = NSPoint(
             x: visibleFrame.midX - (window.frame.width / 2),
-            y: visibleFrame.minY + 12
+            y: visibleFrame.minY + 4
         )
 
         window.setFrameOrigin(origin)
