@@ -125,6 +125,7 @@ final class SpeechBubbleContentView: NSView {
     private var typingTimer: Timer?
     private var fullText = ""
     private var currentIndex = 0
+    private static let bubbleImage = makeBubbleImage()
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -133,17 +134,15 @@ final class SpeechBubbleContentView: NSView {
 
         backgroundView.translatesAutoresizingMaskIntoConstraints = false
         backgroundView.imageScaling = .scaleProportionallyUpOrDown
-        backgroundView.imageAlignment = .alignBottom
-        if let url = Bundle.main.url(forResource: "Speaking Box.png", withExtension: nil) {
-            backgroundView.image = NSImage(contentsOf: url)
-        }
+        backgroundView.imageAlignment = .alignCenter
+        backgroundView.image = Self.bubbleImage
 
         textLabel.translatesAutoresizingMaskIntoConstraints = false
         textLabel.textColor = NSColor.black
         textLabel.alignment = .center
         textLabel.lineBreakMode = .byWordWrapping
-        textLabel.maximumNumberOfLines = 4
-        textLabel.font = Self.pixelFont(size: 15)
+        textLabel.maximumNumberOfLines = 3
+        textLabel.font = Self.pixelFont(size: 14)
         textLabel.cell?.usesSingleLineMode = false
         textLabel.cell?.wraps = true
         textLabel.drawsBackground = false
@@ -217,11 +216,30 @@ final class SpeechBubbleContentView: NSView {
         return NSFont.monospacedSystemFont(ofSize: size, weight: .bold)
     }
 
+    private static func makeBubbleImage() -> NSImage? {
+        guard
+            let url = Bundle.main.url(forResource: "Speaking Box.png", withExtension: nil),
+            let sourceImage = NSImage(contentsOf: url),
+            let tiff = sourceImage.tiffRepresentation,
+            let rep = NSBitmapImageRep(data: tiff)
+        else {
+            return nil
+        }
+
+        let cropRect = NSRect(x: 20, y: 650, width: 1944, height: 620)
+        guard let cgImage = rep.cgImage?.cropping(to: cropRect) else {
+            return sourceImage
+        }
+
+        let croppedImage = NSImage(cgImage: cgImage, size: cropRect.size)
+        return croppedImage
+    }
+
     override func layout() {
         super.layout()
-        let insetX = bounds.width * 0.16
-        let topInset = bounds.height * 0.18
-        let bottomInset = bounds.height * 0.18
+        let insetX = bounds.width * 0.14
+        let topInset = bounds.height * 0.24
+        let bottomInset = bounds.height * 0.22
         textLabel.frame = NSRect(
             x: insetX,
             y: bottomInset,
@@ -235,7 +253,7 @@ final class SpeechBubbleWindowController: NSWindowController {
     private let bubbleContentView: SpeechBubbleContentView
 
     init() {
-        let size = NSSize(width: 280, height: 170)
+        let size = NSSize(width: 340, height: 108)
         let rect = NSRect(origin: .zero, size: size)
         let window = NSPanel(
             contentRect: rect,
@@ -270,7 +288,7 @@ final class SpeechBubbleWindowController: NSWindowController {
         let visibleFrame = targetScreen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let origin = NSPoint(
             x: visibleFrame.midX - (window.frame.width / 2),
-            y: visibleFrame.minY + 16
+            y: visibleFrame.minY + 10
         )
 
         window.setFrameOrigin(origin)
