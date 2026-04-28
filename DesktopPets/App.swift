@@ -105,13 +105,15 @@ final class SpeechBubbleContentView: NSView {
         }
 
         textLabel.translatesAutoresizingMaskIntoConstraints = false
-        textLabel.textColor = NSColor(calibratedRed: 0.17, green: 0.11, blue: 0.09, alpha: 1.0)
+        textLabel.textColor = NSColor.black
         textLabel.alignment = .center
         textLabel.lineBreakMode = .byWordWrapping
         textLabel.maximumNumberOfLines = 4
-        textLabel.font = Self.pixelFont(size: 34)
+        textLabel.font = Self.pixelFont(size: 38)
         textLabel.cell?.usesSingleLineMode = false
         textLabel.cell?.wraps = true
+        textLabel.drawsBackground = false
+        textLabel.isBordered = false
 
         addSubview(backgroundView)
         addSubview(textLabel)
@@ -122,10 +124,10 @@ final class SpeechBubbleContentView: NSView {
             backgroundView.topAnchor.constraint(equalTo: topAnchor),
             backgroundView.bottomAnchor.constraint(equalTo: bottomAnchor),
 
-            textLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 120),
-            textLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -120),
-            textLabel.topAnchor.constraint(equalTo: topAnchor, constant: 122),
-            textLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -130)
+            textLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 92),
+            textLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -92),
+            textLabel.topAnchor.constraint(equalTo: topAnchor, constant: 96),
+            textLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -118)
         ])
     }
 
@@ -190,7 +192,7 @@ final class SpeechBubbleWindowController: NSWindowController {
     private let bubbleContentView: SpeechBubbleContentView
 
     init() {
-        let size = NSSize(width: 760, height: 520)
+        let size = NSSize(width: 860, height: 620)
         let rect = NSRect(origin: .zero, size: size)
         let window = NSPanel(
             contentRect: rect,
