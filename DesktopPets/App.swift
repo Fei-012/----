@@ -142,7 +142,7 @@ final class SpeechBubbleContentView: NSView {
         textLabel.alignment = .center
         textLabel.lineBreakMode = .byWordWrapping
         textLabel.maximumNumberOfLines = 4
-        textLabel.font = Self.pixelFont(size: 38)
+        textLabel.font = Self.pixelFont(size: 18)
         textLabel.cell?.usesSingleLineMode = false
         textLabel.cell?.wraps = true
         textLabel.drawsBackground = false
@@ -218,9 +218,9 @@ final class SpeechBubbleContentView: NSView {
 
     override func layout() {
         super.layout()
-        let insetX = bounds.width * 0.14
-        let topInset = bounds.height * 0.18
-        let bottomInset = bounds.height * 0.23
+        let insetX = bounds.width * 0.16
+        let topInset = bounds.height * 0.2
+        let bottomInset = bounds.height * 0.22
         textLabel.frame = NSRect(
             x: insetX,
             y: bottomInset,
@@ -234,7 +234,7 @@ final class SpeechBubbleWindowController: NSWindowController {
     private let bubbleContentView: SpeechBubbleContentView
 
     init() {
-        let size = NSSize(width: 860, height: 620)
+        let size = NSSize(width: 360, height: 220)
         let rect = NSRect(origin: .zero, size: size)
         let window = NSPanel(
             contentRect: rect,
@@ -269,7 +269,7 @@ final class SpeechBubbleWindowController: NSWindowController {
         let visibleFrame = targetScreen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let origin = NSPoint(
             x: visibleFrame.midX - (window.frame.width / 2),
-            y: visibleFrame.minY + 4
+            y: visibleFrame.minY + 2
         )
 
         window.setFrameOrigin(origin)
