@@ -12,50 +12,18 @@ struct PetDefinition {
 final class PetImageView: NSImageView {
     weak var petWindow: NSWindow?
     var onPress: (() -> Void)?
-    private var mouseDownLocation: NSPoint?
-    private var windowOriginOnMouseDown: NSPoint?
-    private var didDrag = false
 
     override func mouseDown(with event: NSEvent) {
-        mouseDownLocation = event.locationInWindow
-        windowOriginOnMouseDown = petWindow?.frame.origin
-        didDrag = false
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        guard
-            let petWindow,
-            let mouseDownLocation,
-            let windowOriginOnMouseDown
-        else {
+        guard let petWindow else {
             return
         }
 
-        let currentLocation = event.locationInWindow
-        let deltaX = currentLocation.x - mouseDownLocation.x
-        let deltaY = currentLocation.y - mouseDownLocation.y
-        let dragDistance = hypot(deltaX, deltaY)
+        let startOrigin = petWindow.frame.origin
+        petWindow.performDrag(with: event)
+        let endOrigin = petWindow.frame.origin
+        let dragDistance = hypot(endOrigin.x - startOrigin.x, endOrigin.y - startOrigin.y)
 
-        if dragDistance > 4 {
-            didDrag = true
-        }
-
-        petWindow.setFrameOrigin(
-            NSPoint(
-                x: windowOriginOnMouseDown.x + deltaX,
-                y: windowOriginOnMouseDown.y + deltaY
-            )
-        )
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        defer {
-            mouseDownLocation = nil
-            windowOriginOnMouseDown = nil
-            didDrag = false
-        }
-
-        if !didDrag {
+        if dragDistance < 2 {
             onPress?()
         }
     }
@@ -77,7 +45,7 @@ final class PetWindowController: NSWindowController {
 
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.level = .screenSaver
+        window.level = .statusBar
         window.hasShadow = false
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         window.isMovable = true
@@ -120,44 +88,29 @@ final class PetWindowController: NSWindowController {
 }
 
 final class SpeechBubbleContentView: NSView {
-    private let backgroundView = NSImageView()
     private let textLabel = NSTextField(labelWithString: "")
     private var typingTimer: Timer?
     private var fullText = ""
     private var currentIndex = 0
-    private static let bubbleImage = makeBubbleImage()
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
 
         wantsLayer = true
 
-        backgroundView.translatesAutoresizingMaskIntoConstraints = false
-        backgroundView.imageScaling = .scaleProportionallyUpOrDown
-        backgroundView.imageAlignment = .alignCenter
-        backgroundView.image = Self.bubbleImage
-
         textLabel.translatesAutoresizingMaskIntoConstraints = false
         textLabel.textColor = NSColor.black
         textLabel.alignment = .center
         textLabel.lineBreakMode = .byWordWrapping
-        textLabel.maximumNumberOfLines = 3
-        textLabel.font = Self.pixelFont(size: 14)
+        textLabel.maximumNumberOfLines = 2
+        textLabel.font = Self.pixelFont(size: 12)
         textLabel.cell?.usesSingleLineMode = false
         textLabel.cell?.wraps = true
         textLabel.drawsBackground = false
         textLabel.isBordered = false
         textLabel.wantsLayer = true
 
-        addSubview(backgroundView)
         addSubview(textLabel)
-
-        NSLayoutConstraint.activate([
-            backgroundView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            backgroundView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            backgroundView.topAnchor.constraint(equalTo: topAnchor),
-            backgroundView.bottomAnchor.constraint(equalTo: bottomAnchor)
-        ])
     }
 
     @available(*, unavailable)
@@ -216,36 +169,49 @@ final class SpeechBubbleContentView: NSView {
         return NSFont.monospacedSystemFont(ofSize: size, weight: .bold)
     }
 
-    private static func makeBubbleImage() -> NSImage? {
-        guard
-            let url = Bundle.main.url(forResource: "Speaking Box.png", withExtension: nil),
-            let sourceImage = NSImage(contentsOf: url),
-            let tiff = sourceImage.tiffRepresentation,
-            let rep = NSBitmapImageRep(data: tiff)
-        else {
-            return nil
-        }
-
-        let cropRect = NSRect(x: 20, y: 650, width: 1944, height: 620)
-        guard let cgImage = rep.cgImage?.cropping(to: cropRect) else {
-            return sourceImage
-        }
-
-        let croppedImage = NSImage(cgImage: cgImage, size: cropRect.size)
-        return croppedImage
-    }
-
     override func layout() {
         super.layout()
-        let insetX = bounds.width * 0.14
-        let topInset = bounds.height * 0.24
-        let bottomInset = bounds.height * 0.22
+        let bubbleRect = speechBubbleRect()
+        let insetX = bubbleRect.width * 0.12
+        let topInset = bubbleRect.height * 0.2
+        let bottomInset = bubbleRect.height * 0.18
         textLabel.frame = NSRect(
-            x: insetX,
-            y: bottomInset,
-            width: bounds.width - (insetX * 2),
-            height: bounds.height - topInset - bottomInset
+            x: bubbleRect.minX + insetX,
+            y: bubbleRect.minY + bottomInset,
+            width: bubbleRect.width - (insetX * 2),
+            height: bubbleRect.height - topInset - bottomInset
         )
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        let bubbleRect = speechBubbleRect()
+        let borderColor = NSColor(calibratedRed: 0.97, green: 0.45, blue: 0.49, alpha: 1.0)
+        let fillColor = NSColor.white
+
+        fillColor.setFill()
+        borderColor.setStroke()
+
+        let bubblePath = NSBezierPath(roundedRect: bubbleRect, xRadius: 14, yRadius: 14)
+        bubblePath.lineWidth = 6
+        bubblePath.fill()
+        bubblePath.stroke()
+
+        let tailPath = NSBezierPath()
+        tailPath.lineWidth = 6
+        tailPath.move(to: NSPoint(x: bubbleRect.minX + 36, y: bubbleRect.minY))
+        tailPath.line(to: NSPoint(x: bubbleRect.minX + 18, y: bubbleRect.minY - 18))
+        tailPath.line(to: NSPoint(x: bubbleRect.minX + 62, y: bubbleRect.minY + 4))
+        tailPath.close()
+        fillColor.setFill()
+        borderColor.setStroke()
+        tailPath.fill()
+        tailPath.stroke()
+    }
+
+    private func speechBubbleRect() -> NSRect {
+        NSRect(x: 10, y: 20, width: bounds.width - 20, height: bounds.height - 28)
     }
 }
 
@@ -253,7 +219,7 @@ final class SpeechBubbleWindowController: NSWindowController {
     private let bubbleContentView: SpeechBubbleContentView
 
     init() {
-        let size = NSSize(width: 340, height: 108)
+        let size = NSSize(width: 240, height: 92)
         let rect = NSRect(origin: .zero, size: size)
         let window = NSPanel(
             contentRect: rect,
@@ -264,7 +230,7 @@ final class SpeechBubbleWindowController: NSWindowController {
 
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.level = .screenSaver
+        window.level = .statusBar
         window.hasShadow = false
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.ignoresMouseEvents = false
@@ -288,7 +254,7 @@ final class SpeechBubbleWindowController: NSWindowController {
         let visibleFrame = targetScreen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let origin = NSPoint(
             x: visibleFrame.midX - (window.frame.width / 2),
-            y: visibleFrame.minY + 10
+            y: visibleFrame.minY + 6
         )
 
         window.setFrameOrigin(origin)
