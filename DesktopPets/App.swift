@@ -267,7 +267,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             fileName: "Sunny.GIF",
             defaultOrigin: NSPoint(x: 140, y: 640),
             size: NSSize(width: 160, height: 160),
-            quotes: ["Hi, I'm Dex.", "绷。"]
+            quotes: ["Hi, I'm Dex.", "绷。", "I sense the air, I sense art..."]
         ),
         PetDefinition(
             id: "pet2",
