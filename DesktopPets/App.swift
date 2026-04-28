@@ -12,14 +12,52 @@ struct PetDefinition {
 final class PetImageView: NSImageView {
     weak var petWindow: NSWindow?
     var onPress: (() -> Void)?
+    private var mouseDownLocation: NSPoint?
+    private var windowOriginOnMouseDown: NSPoint?
+    private var didDrag = false
 
     override func mouseDown(with event: NSEvent) {
-        petWindow?.performDrag(with: event)
+        mouseDownLocation = event.locationInWindow
+        windowOriginOnMouseDown = petWindow?.frame.origin
+        didDrag = false
     }
 
-    @objc
-    func handleClick() {
-        onPress?()
+    override func mouseDragged(with event: NSEvent) {
+        guard
+            let petWindow,
+            let mouseDownLocation,
+            let windowOriginOnMouseDown
+        else {
+            return
+        }
+
+        let currentLocation = event.locationInWindow
+        let deltaX = currentLocation.x - mouseDownLocation.x
+        let deltaY = currentLocation.y - mouseDownLocation.y
+        let dragDistance = hypot(deltaX, deltaY)
+
+        if dragDistance > 4 {
+            didDrag = true
+        }
+
+        petWindow.setFrameOrigin(
+            NSPoint(
+                x: windowOriginOnMouseDown.x + deltaX,
+                y: windowOriginOnMouseDown.y + deltaY
+            )
+        )
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        defer {
+            mouseDownLocation = nil
+            windowOriginOnMouseDown = nil
+            didDrag = false
+        }
+
+        if !didDrag {
+            onPress?()
+        }
     }
 }
 
@@ -57,11 +95,6 @@ final class PetWindowController: NSWindowController {
         imageView.wantsLayer = true
         imageView.petWindow = window
         imageView.onPress = onPress
-
-        let clickGesture = NSClickGestureRecognizer(target: imageView, action: #selector(PetImageView.handleClick))
-        clickGesture.numberOfClicksRequired = 1
-        clickGesture.delaysPrimaryMouseButtonEvents = false
-        imageView.addGestureRecognizer(clickGesture)
 
         if let url = Bundle.main.url(forResource: pet.fileName, withExtension: nil) {
             imageView.image = NSImage(contentsOf: url)
@@ -114,6 +147,7 @@ final class SpeechBubbleContentView: NSView {
         textLabel.cell?.wraps = true
         textLabel.drawsBackground = false
         textLabel.isBordered = false
+        textLabel.wantsLayer = true
 
         addSubview(backgroundView)
         addSubview(textLabel)
@@ -122,12 +156,7 @@ final class SpeechBubbleContentView: NSView {
             backgroundView.leadingAnchor.constraint(equalTo: leadingAnchor),
             backgroundView.trailingAnchor.constraint(equalTo: trailingAnchor),
             backgroundView.topAnchor.constraint(equalTo: topAnchor),
-            backgroundView.bottomAnchor.constraint(equalTo: bottomAnchor),
-
-            textLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 92),
-            textLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -92),
-            textLabel.topAnchor.constraint(equalTo: topAnchor, constant: 96),
-            textLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -118)
+            backgroundView.bottomAnchor.constraint(equalTo: bottomAnchor)
         ])
     }
 
@@ -186,6 +215,19 @@ final class SpeechBubbleContentView: NSView {
 
         return NSFont.monospacedSystemFont(ofSize: size, weight: .bold)
     }
+
+    override func layout() {
+        super.layout()
+        let insetX = bounds.width * 0.14
+        let topInset = bounds.height * 0.18
+        let bottomInset = bounds.height * 0.23
+        textLabel.frame = NSRect(
+            x: insetX,
+            y: bottomInset,
+            width: bounds.width - (insetX * 2),
+            height: bounds.height - topInset - bottomInset
+        )
+    }
 }
 
 final class SpeechBubbleWindowController: NSWindowController {
@@ -233,6 +275,7 @@ final class SpeechBubbleWindowController: NSWindowController {
         window.setFrameOrigin(origin)
         showWindow(nil)
         window.orderFrontRegardless()
+        window.contentView?.needsLayout = true
         bubbleContentView.startTyping(text)
     }
 
