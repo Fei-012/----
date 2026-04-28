@@ -172,7 +172,7 @@ final class SpeechBubbleContentView: NSView {
     override func layout() {
         super.layout()
         let bubbleRect = speechBubbleRect()
-        let insetX = bubbleRect.width * 0.12
+        let insetX = bubbleRect.width * 0.1
         let topInset = bubbleRect.height * 0.2
         let bottomInset = bubbleRect.height * 0.18
         textLabel.frame = NSRect(
@@ -197,21 +197,10 @@ final class SpeechBubbleContentView: NSView {
         bubblePath.lineWidth = 6
         bubblePath.fill()
         bubblePath.stroke()
-
-        let tailPath = NSBezierPath()
-        tailPath.lineWidth = 6
-        tailPath.move(to: NSPoint(x: bubbleRect.minX + 36, y: bubbleRect.minY))
-        tailPath.line(to: NSPoint(x: bubbleRect.minX + 18, y: bubbleRect.minY - 18))
-        tailPath.line(to: NSPoint(x: bubbleRect.minX + 62, y: bubbleRect.minY + 4))
-        tailPath.close()
-        fillColor.setFill()
-        borderColor.setStroke()
-        tailPath.fill()
-        tailPath.stroke()
     }
 
     private func speechBubbleRect() -> NSRect {
-        NSRect(x: 10, y: 20, width: bounds.width - 20, height: bounds.height - 28)
+        NSRect(x: 10, y: 10, width: bounds.width - 20, height: bounds.height - 20)
     }
 }
 
@@ -219,7 +208,7 @@ final class SpeechBubbleWindowController: NSWindowController {
     private let bubbleContentView: SpeechBubbleContentView
 
     init() {
-        let size = NSSize(width: 240, height: 92)
+        let size = NSSize(width: 280, height: 110)
         let rect = NSRect(origin: .zero, size: size)
         let window = NSPanel(
             contentRect: rect,
