@@ -45,7 +45,7 @@ final class PetWindowController: NSWindowController {
 
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.level = .statusBar
+        window.level = .floating
         window.hasShadow = false
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         window.isMovable = true
@@ -102,8 +102,8 @@ final class SpeechBubbleContentView: NSView {
         textLabel.textColor = NSColor.black
         textLabel.alignment = .center
         textLabel.lineBreakMode = .byWordWrapping
-        textLabel.maximumNumberOfLines = 2
-        textLabel.font = Self.pixelFont(size: 12)
+        textLabel.maximumNumberOfLines = 3
+        textLabel.font = Self.pixelFont(size: 15)
         textLabel.cell?.usesSingleLineMode = false
         textLabel.cell?.wraps = true
         textLabel.drawsBackground = false
@@ -174,7 +174,7 @@ final class SpeechBubbleContentView: NSView {
         let bubbleRect = speechBubbleRect()
         let insetX = bubbleRect.width * 0.1
         let topInset = bubbleRect.height * 0.2
-        let bottomInset = bubbleRect.height * 0.18
+        let bottomInset = bubbleRect.height * 0.16
         textLabel.frame = NSRect(
             x: bubbleRect.minX + insetX,
             y: bubbleRect.minY + bottomInset,
@@ -208,7 +208,7 @@ final class SpeechBubbleWindowController: NSWindowController {
     private let bubbleContentView: SpeechBubbleContentView
 
     init() {
-        let size = NSSize(width: 280, height: 110)
+        let size = NSSize(width: 360, height: 140)
         let rect = NSRect(origin: .zero, size: size)
         let window = NSPanel(
             contentRect: rect,
@@ -219,7 +219,7 @@ final class SpeechBubbleWindowController: NSWindowController {
 
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.level = .statusBar
+        window.level = .floating
         window.hasShadow = false
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.ignoresMouseEvents = false
@@ -243,7 +243,7 @@ final class SpeechBubbleWindowController: NSWindowController {
         let visibleFrame = targetScreen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let origin = NSPoint(
             x: visibleFrame.midX - (window.frame.width / 2),
-            y: visibleFrame.minY + 6
+            y: visibleFrame.minY + 8
         )
 
         window.setFrameOrigin(origin)
@@ -292,6 +292,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var speechBubbleController: SpeechBubbleWindowController?
     private var localMouseMonitor: Any?
     private var globalMouseMonitor: Any?
+    private var delayedGracieWorkItem: DispatchWorkItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
@@ -315,7 +316,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func buildControlWindow() {
-        let rect = NSRect(x: 220, y: 220, width: 430, height: 260)
+        let rect = NSRect(x: 220, y: 220, width: 520, height: 320)
         let window = NSWindow(
             contentRect: rect,
             styleMask: [.titled, .closable, .miniaturizable],
@@ -343,10 +344,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         subtitleLabel.maximumNumberOfLines = 2
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        let showPet1Button = makeButton(title: "Open Pet 1", action: #selector(showPet1))
-        let showPet2Button = makeButton(title: "Open Pet 2", action: #selector(showPet2))
-        let showPet3Button = makeButton(title: "Open Pet 3", action: #selector(showPet3))
+        let showPet1Button = makeButton(title: "Open Sunny", action: #selector(showPet1))
+        let showPet2Button = makeButton(title: "Open Grace", action: #selector(showPet2))
+        let showPet3Button = makeButton(title: "Open Gracie", action: #selector(showPet3))
         let showAllButton = makeButton(title: "Open All 3", action: #selector(showAllPets))
+        let showGraceAndSunnyButton = makeWideButton(title: "Open Grace and Sunny ONLY", action: #selector(showGraceAndSunnyOnly))
         let hideAllButton = makeButton(title: "Hide All", action: #selector(hideAllPets))
 
         let firstRow = NSStackView(views: [showPet1Button, showPet2Button])
@@ -359,7 +361,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         secondRow.spacing = 12
         secondRow.alignment = .centerY
 
-        let controlsStack = NSStackView(views: [firstRow, secondRow, hideAllButton])
+        let thirdRow = NSStackView(views: [showGraceAndSunnyButton, hideAllButton])
+        thirdRow.orientation = .horizontal
+        thirdRow.spacing = 12
+        thirdRow.alignment = .centerY
+
+        let controlsStack = NSStackView(views: [firstRow, secondRow, thirdRow])
         controlsStack.orientation = .vertical
         controlsStack.spacing = 12
         controlsStack.alignment = .centerX
@@ -393,6 +400,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         button.setButtonType(.momentaryPushIn)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.widthAnchor.constraint(equalToConstant: 150).isActive = true
+        return button
+    }
+
+    private func makeWideButton(title: String, action: Selector) -> NSButton {
+        let button = NSButton(title: title, target: self, action: action)
+        button.bezelStyle = .rounded
+        button.setButtonType(.momentaryPushIn)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.widthAnchor.constraint(equalToConstant: 240).isActive = true
         return button
     }
 
@@ -438,34 +454,67 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         speechBubbleController?.showNearBottomCenter(with: "\(pet.displayName): \(quote)")
     }
 
+    private func showSpeechBubble(with text: String) {
+        speechBubbleController?.showNearBottomCenter(with: text)
+    }
+
     private func hideSpeechBubble() {
         speechBubbleController?.hideBubble()
     }
 
+    private func cancelDelayedGracie() {
+        delayedGracieWorkItem?.cancel()
+        delayedGracieWorkItem = nil
+    }
+
     @objc
     private func showPet1() {
+        cancelDelayedGracie()
         controller(for: "pet1")?.showPet()
     }
 
     @objc
     private func showPet2() {
+        cancelDelayedGracie()
         controller(for: "pet2")?.showPet()
     }
 
     @objc
     private func showPet3() {
+        cancelDelayedGracie()
         controller(for: "pet3")?.showPet()
     }
 
     @objc
     private func showAllPets() {
+        cancelDelayedGracie()
         showPet1()
         showPet2()
         showPet3()
     }
 
     @objc
+    private func showGraceAndSunnyOnly() {
+        cancelDelayedGracie()
+        hideSpeechBubble()
+        controller(for: "pet2")?.showPet()
+        controller(for: "pet1")?.showPet()
+        controller(for: "pet3")?.hidePet()
+
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.controller(for: "pet3")?.showPet()
+            self.showSpeechBubble(with: "Why are you not including me!?")
+            self.delayedGracieWorkItem = nil
+        }
+
+        delayedGracieWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: workItem)
+    }
+
+    @objc
     private func hideAllPets() {
+        cancelDelayedGracie()
         hideSpeechBubble()
         controllers.values.forEach { $0.hidePet() }
     }
