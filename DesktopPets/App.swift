@@ -2,18 +2,63 @@ import AppKit
 
 struct PetDefinition {
     let id: String
+    let displayName: String
     let fileName: String
     let defaultOrigin: NSPoint
     let size: NSSize
+    let quotes: [String]
 }
 
 final class PetImageView: NSImageView {
     weak var petWindow: NSWindow?
     var onPress: (() -> Void)?
+    private var mouseDownLocation: NSPoint?
+    private var windowOriginOnMouseDown: NSPoint?
 
     override func mouseDown(with event: NSEvent) {
-        onPress?()
-        petWindow?.performDrag(with: event)
+        mouseDownLocation = event.locationInWindow
+        windowOriginOnMouseDown = petWindow?.frame.origin
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard
+            let petWindow,
+            let mouseDownLocation,
+            let windowOriginOnMouseDown
+        else {
+            return
+        }
+
+        let currentLocation = event.locationInWindow
+        let deltaX = currentLocation.x - mouseDownLocation.x
+        let deltaY = currentLocation.y - mouseDownLocation.y
+
+        petWindow.setFrameOrigin(
+            NSPoint(
+                x: windowOriginOnMouseDown.x + deltaX,
+                y: windowOriginOnMouseDown.y + deltaY
+            )
+        )
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        defer {
+            mouseDownLocation = nil
+            windowOriginOnMouseDown = nil
+        }
+
+        guard let mouseDownLocation else {
+            return
+        }
+
+        let mouseUpLocation = event.locationInWindow
+        let deltaX = mouseUpLocation.x - mouseDownLocation.x
+        let deltaY = mouseUpLocation.y - mouseDownLocation.y
+        let dragDistance = hypot(deltaX, deltaY)
+
+        if dragDistance < 6 {
+            onPress?()
+        }
     }
 }
 
@@ -75,9 +120,111 @@ final class PetWindowController: NSWindowController {
     }
 }
 
+final class SpeechBubbleContentView: NSView {
+    private let backgroundView = NSImageView()
+    private let textLabel = NSTextField(labelWithString: "")
+    private var typingTimer: Timer?
+    private var fullText = ""
+    private var currentIndex = 0
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+
+        wantsLayer = true
+
+        backgroundView.translatesAutoresizingMaskIntoConstraints = false
+        backgroundView.imageScaling = .scaleProportionallyUpOrDown
+        if let url = Bundle.main.url(forResource: "Speaking Box.png", withExtension: nil) {
+            backgroundView.image = NSImage(contentsOf: url)
+        }
+
+        textLabel.translatesAutoresizingMaskIntoConstraints = false
+        textLabel.textColor = NSColor(calibratedRed: 0.17, green: 0.11, blue: 0.09, alpha: 1.0)
+        textLabel.alignment = .center
+        textLabel.lineBreakMode = .byWordWrapping
+        textLabel.maximumNumberOfLines = 3
+        textLabel.font = Self.pixelFont(size: 24)
+        textLabel.cell?.usesSingleLineMode = false
+        textLabel.cell?.wraps = true
+
+        addSubview(backgroundView)
+        addSubview(textLabel)
+
+        NSLayoutConstraint.activate([
+            backgroundView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            backgroundView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            backgroundView.topAnchor.constraint(equalTo: topAnchor),
+            backgroundView.bottomAnchor.constraint(equalTo: bottomAnchor),
+
+            textLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 74),
+            textLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -74),
+            textLabel.topAnchor.constraint(equalTo: topAnchor, constant: 72),
+            textLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -92)
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func startTyping(_ text: String) {
+        typingTimer?.invalidate()
+        fullText = text
+        currentIndex = 0
+        textLabel.stringValue = ""
+
+        guard !text.isEmpty else { return }
+
+        typingTimer = Timer.scheduledTimer(withTimeInterval: 0.035, repeats: true) { [weak self] timer in
+            guard let self else {
+                timer.invalidate()
+                return
+            }
+
+            currentIndex += 1
+            let prefix = String(fullText.prefix(currentIndex))
+            textLabel.stringValue = prefix
+
+            if currentIndex >= fullText.count {
+                timer.invalidate()
+                typingTimer = nil
+            }
+        }
+    }
+
+    func clearText() {
+        typingTimer?.invalidate()
+        typingTimer = nil
+        textLabel.stringValue = ""
+        fullText = ""
+        currentIndex = 0
+    }
+
+    private static func pixelFont(size: CGFloat) -> NSFont {
+        let fontNames = [
+            "Press Start 2P",
+            "PixelMplus12-Regular",
+            "Minecraft",
+            "Silom",
+            "Monaco"
+        ]
+
+        for fontName in fontNames {
+            if let font = NSFont(name: fontName, size: size) {
+                return font
+            }
+        }
+
+        return NSFont.monospacedSystemFont(ofSize: size, weight: .bold)
+    }
+}
+
 final class SpeechBubbleWindowController: NSWindowController {
+    private let bubbleContentView: SpeechBubbleContentView
+
     init() {
-        let size = NSSize(width: 360, height: 220)
+        let size = NSSize(width: 520, height: 310)
         let rect = NSRect(origin: .zero, size: size)
         let window = NSPanel(
             contentRect: rect,
@@ -95,17 +242,9 @@ final class SpeechBubbleWindowController: NSWindowController {
         window.hidesOnDeactivate = false
         window.isReleasedWhenClosed = false
 
+        bubbleContentView = SpeechBubbleContentView(frame: rect)
         super.init(window: window)
-
-        let imageView = NSImageView(frame: rect)
-        imageView.imageScaling = .scaleProportionallyUpOrDown
-        imageView.animates = false
-
-        if let url = Bundle.main.url(forResource: "Speaking Box.png", withExtension: nil) {
-            imageView.image = NSImage(contentsOf: url)
-        }
-
-        window.contentView = imageView
+        window.contentView = bubbleContentView
     }
 
     @available(*, unavailable)
@@ -113,22 +252,24 @@ final class SpeechBubbleWindowController: NSWindowController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func showNearBottomCenter() {
+    func showNearBottomCenter(with text: String) {
         guard let window else { return }
 
         let targetScreen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main
         let visibleFrame = targetScreen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let origin = NSPoint(
             x: visibleFrame.midX - (window.frame.width / 2),
-            y: visibleFrame.minY + 70
+            y: visibleFrame.minY + 12
         )
 
         window.setFrameOrigin(origin)
         showWindow(nil)
         window.orderFrontRegardless()
+        bubbleContentView.startTyping(text)
     }
 
     func hideBubble() {
+        bubbleContentView.clearText()
         window?.orderOut(nil)
     }
 }
@@ -137,21 +278,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let pets: [PetDefinition] = [
         PetDefinition(
             id: "pet1",
+            displayName: "Sunny",
             fileName: "Sunny.GIF",
             defaultOrigin: NSPoint(x: 140, y: 640),
-            size: NSSize(width: 160, height: 160)
+            size: NSSize(width: 160, height: 160),
+            quotes: ["Hi, I'm Dex.", "绷。"]
         ),
         PetDefinition(
             id: "pet2",
+            displayName: "Grace",
             fileName: "Grace.gif",
             defaultOrigin: NSPoint(x: 320, y: 640),
-            size: NSSize(width: 160, height: 160)
+            size: NSSize(width: 160, height: 160),
+            quotes: ["I'm a bananagoose, yeii.", "干嘛？"]
         ),
         PetDefinition(
             id: "pet3",
+            displayName: "Gracie",
             fileName: "Gracie.gif",
             defaultOrigin: NSPoint(x: 500, y: 640),
-            size: NSSize(width: 160, height: 160)
+            size: NSSize(width: 160, height: 160),
+            quotes: ["I don't care.", "Let's goooo!"]
         )
     ]
 
@@ -203,7 +350,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         titleLabel.alignment = .center
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        let subtitleLabel = NSTextField(labelWithString: "Press a pet to show the speaking box. Click anywhere else to hide it.")
+        let subtitleLabel = NSTextField(labelWithString: "Press a pet to show a random line. Click anywhere else to hide it.")
         subtitleLabel.font = .systemFont(ofSize: 12)
         subtitleLabel.textColor = .secondaryLabelColor
         subtitleLabel.alignment = .center
@@ -295,14 +442,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let controller = PetWindowController(pet: pet) { [weak self] in
-            self?.showSpeechBubble()
+            self?.showSpeechBubble(for: pet)
         }
         controllers[petId] = controller
         return controller
     }
 
-    private func showSpeechBubble() {
-        speechBubbleController?.showNearBottomCenter()
+    private func showSpeechBubble(for pet: PetDefinition) {
+        guard let quote = pet.quotes.randomElement() else { return }
+        speechBubbleController?.showNearBottomCenter(with: "\(pet.displayName): \(quote)")
     }
 
     private func hideSpeechBubble() {
