@@ -8,13 +8,21 @@
 		<data>
 		VJY9Ni9RcC8k8sCkPebFNvsgbI0=
 		</data>
-		<key>Resources/IMG_3090.GIF</key>
-		<data>
-		E+Ijr3sa+Z6DimqnHTlP1brJoOo=
-		</data>
-		<key>Resources/UntitledArtwork1.gif</key>
+		<key>Resources/Grace.gif</key>
 		<data>
 		rtpott8x6VKvRL6OV6faTJLv45o=
+		</data>
+		<key>Resources/Gracie.gif</key>
+		<data>
+		DDmDI7XPYXBzN/0bMXDrPy43gDY=
+		</data>
+		<key>Resources/Speaking Box.png</key>
+		<data>
+		+zHoBi1nlwVVv9MMMmDE6bWwdYg=
+		</data>
+		<key>Resources/Sunny.GIF</key>
+		<data>
+		E+Ijr3sa+Z6DimqnHTlP1brJoOo=
 		</data>
 	</dict>
 	<key>files2</key>
@@ -26,18 +34,32 @@
 			sXRw1bPsuUxTMeNKO+EJkxAKEDhJE1AsV5Qu8HkOozA=
 			</data>
 		</dict>
-		<key>Resources/IMG_3090.GIF</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			7E1zh9HuJxOag3Ps2fB/DoZy5yymFnS0GpqgnpKFXk0=
-			</data>
-		</dict>
-		<key>Resources/UntitledArtwork1.gif</key>
+		<key>Resources/Grace.gif</key>
 		<dict>
 			<key>hash2</key>
 			<data>
 			Y/Jfl1JdDKKahBNkvzWEusIaYOJght54N4McsEwHjP4=
+			</data>
+		</dict>
+		<key>Resources/Gracie.gif</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			Xs1CQdFkcJXMQjB39RSemaoMrM96PVMdHiC5F8ugqnM=
+			</data>
+		</dict>
+		<key>Resources/Speaking Box.png</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			LC/zoTwyOkoz3HerveEfttvxhryJhPeuWhwRg45z/Jc=
+			</data>
+		</dict>
+		<key>Resources/Sunny.GIF</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			7E1zh9HuJxOag3Ps2fB/DoZy5yymFnS0GpqgnpKFXk0=
 			</data>
 		</dict>
 	</dict>

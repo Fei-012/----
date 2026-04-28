@@ -9,8 +9,10 @@ struct PetDefinition {
 
 final class PetImageView: NSImageView {
     weak var petWindow: NSWindow?
+    var onPress: (() -> Void)?
 
     override func mouseDown(with event: NSEvent) {
+        onPress?()
         petWindow?.performDrag(with: event)
     }
 }
@@ -18,7 +20,7 @@ final class PetImageView: NSImageView {
 final class PetWindowController: NSWindowController {
     let pet: PetDefinition
 
-    init(pet: PetDefinition) {
+    init(pet: PetDefinition, onPress: @escaping () -> Void) {
         self.pet = pet
 
         let rect = NSRect(origin: pet.defaultOrigin, size: pet.size)
@@ -48,6 +50,7 @@ final class PetWindowController: NSWindowController {
         imageView.animates = true
         imageView.wantsLayer = true
         imageView.petWindow = window
+        imageView.onPress = onPress
 
         if let url = Bundle.main.url(forResource: pet.fileName, withExtension: nil) {
             imageView.image = NSImage(contentsOf: url)
@@ -72,29 +75,107 @@ final class PetWindowController: NSWindowController {
     }
 }
 
+final class SpeechBubbleWindowController: NSWindowController {
+    init() {
+        let size = NSSize(width: 360, height: 220)
+        let rect = NSRect(origin: .zero, size: size)
+        let window = NSPanel(
+            contentRect: rect,
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.level = .screenSaver
+        window.hasShadow = false
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        window.ignoresMouseEvents = false
+        window.hidesOnDeactivate = false
+        window.isReleasedWhenClosed = false
+
+        super.init(window: window)
+
+        let imageView = NSImageView(frame: rect)
+        imageView.imageScaling = .scaleProportionallyUpOrDown
+        imageView.animates = false
+
+        if let url = Bundle.main.url(forResource: "Speaking Box.png", withExtension: nil) {
+            imageView.image = NSImage(contentsOf: url)
+        }
+
+        window.contentView = imageView
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func showNearBottomCenter() {
+        guard let window else { return }
+
+        let targetScreen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main
+        let visibleFrame = targetScreen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let origin = NSPoint(
+            x: visibleFrame.midX - (window.frame.width / 2),
+            y: visibleFrame.minY + 70
+        )
+
+        window.setFrameOrigin(origin)
+        showWindow(nil)
+        window.orderFrontRegardless()
+    }
+
+    func hideBubble() {
+        window?.orderOut(nil)
+    }
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let pets: [PetDefinition] = [
         PetDefinition(
             id: "pet1",
-            fileName: "IMG_3090.GIF",
+            fileName: "Sunny.GIF",
             defaultOrigin: NSPoint(x: 140, y: 640),
             size: NSSize(width: 160, height: 160)
         ),
         PetDefinition(
             id: "pet2",
-            fileName: "UntitledArtwork1.gif",
+            fileName: "Grace.gif",
             defaultOrigin: NSPoint(x: 320, y: 640),
+            size: NSSize(width: 160, height: 160)
+        ),
+        PetDefinition(
+            id: "pet3",
+            fileName: "Gracie.gif",
+            defaultOrigin: NSPoint(x: 500, y: 640),
             size: NSSize(width: 160, height: 160)
         )
     ]
 
     private var controllers: [String: PetWindowController] = [:]
     private var controlWindow: NSWindow?
+    private var speechBubbleController: SpeechBubbleWindowController?
+    private var localMouseMonitor: Any?
+    private var globalMouseMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+        speechBubbleController = SpeechBubbleWindowController()
         buildControlWindow()
+        installMouseMonitors()
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        if let localMouseMonitor {
+            NSEvent.removeMonitor(localMouseMonitor)
+        }
+        if let globalMouseMonitor {
+            NSEvent.removeMonitor(globalMouseMonitor)
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -102,7 +183,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func buildControlWindow() {
-        let rect = NSRect(x: 220, y: 220, width: 360, height: 210)
+        let rect = NSRect(x: 220, y: 220, width: 430, height: 260)
         let window = NSWindow(
             contentRect: rect,
             styleMask: [.titled, .closable, .miniaturizable],
@@ -122,7 +203,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         titleLabel.alignment = .center
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        let subtitleLabel = NSTextField(labelWithString: "Drag a pet anywhere. It stays put and keeps animating until you move it again.")
+        let subtitleLabel = NSTextField(labelWithString: "Press a pet to show the speaking box. Click anywhere else to hide it.")
         subtitleLabel.font = .systemFont(ofSize: 12)
         subtitleLabel.textColor = .secondaryLabelColor
         subtitleLabel.alignment = .center
@@ -132,20 +213,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let showPet1Button = makeButton(title: "Open Pet 1", action: #selector(showPet1))
         let showPet2Button = makeButton(title: "Open Pet 2", action: #selector(showPet2))
-        let showBothButton = makeButton(title: "Open Both", action: #selector(showBothPets))
+        let showPet3Button = makeButton(title: "Open Pet 3", action: #selector(showPet3))
+        let showAllButton = makeButton(title: "Open All 3", action: #selector(showAllPets))
         let hideAllButton = makeButton(title: "Hide All", action: #selector(hideAllPets))
 
-        let grid = NSGridView(views: [
-            [showPet1Button, showPet2Button],
-            [showBothButton, hideAllButton]
-        ])
-        grid.rowSpacing = 12
-        grid.columnSpacing = 12
-        grid.translatesAutoresizingMaskIntoConstraints = false
+        let firstRow = NSStackView(views: [showPet1Button, showPet2Button])
+        firstRow.orientation = .horizontal
+        firstRow.spacing = 12
+        firstRow.alignment = .centerY
+
+        let secondRow = NSStackView(views: [showPet3Button, showAllButton])
+        secondRow.orientation = .horizontal
+        secondRow.spacing = 12
+        secondRow.alignment = .centerY
+
+        let controlsStack = NSStackView(views: [firstRow, secondRow, hideAllButton])
+        controlsStack.orientation = .vertical
+        controlsStack.spacing = 12
+        controlsStack.alignment = .centerX
+        controlsStack.translatesAutoresizingMaskIntoConstraints = false
 
         contentView.addSubview(titleLabel)
         contentView.addSubview(subtitleLabel)
-        contentView.addSubview(grid)
+        contentView.addSubview(controlsStack)
 
         NSLayoutConstraint.activate([
             titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 28),
@@ -156,9 +246,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             subtitleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 28),
             subtitleLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -28),
 
-            grid.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 24),
-            grid.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            grid.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -24)
+            controlsStack.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 24),
+            controlsStack.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            controlsStack.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -24)
         ])
 
         controlWindow = window
@@ -170,8 +260,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         button.bezelStyle = .rounded
         button.setButtonType(.momentaryPushIn)
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.widthAnchor.constraint(equalToConstant: 130).isActive = true
+        button.widthAnchor.constraint(equalToConstant: 150).isActive = true
         return button
+    }
+
+    private func installMouseMonitors() {
+        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
+            self?.handleMouseDown(event.window)
+            return event
+        }
+
+        globalMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in
+            self?.hideSpeechBubble()
+        }
+    }
+
+    private func handleMouseDown(_ clickedWindow: NSWindow?) {
+        guard let bubbleWindow = speechBubbleController?.window else {
+            return
+        }
+
+        if clickedWindow !== bubbleWindow {
+            hideSpeechBubble()
+        }
     }
 
     private func controller(for petId: String) -> PetWindowController? {
@@ -183,9 +294,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return nil
         }
 
-        let controller = PetWindowController(pet: pet)
+        let controller = PetWindowController(pet: pet) { [weak self] in
+            self?.showSpeechBubble()
+        }
         controllers[petId] = controller
         return controller
+    }
+
+    private func showSpeechBubble() {
+        speechBubbleController?.showNearBottomCenter()
+    }
+
+    private func hideSpeechBubble() {
+        speechBubbleController?.hideBubble()
     }
 
     @objc
@@ -199,13 +320,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc
-    private func showBothPets() {
+    private func showPet3() {
+        controller(for: "pet3")?.showPet()
+    }
+
+    @objc
+    private func showAllPets() {
         showPet1()
         showPet2()
+        showPet3()
     }
 
     @objc
     private func hideAllPets() {
+        hideSpeechBubble()
         controllers.values.forEach { $0.hidePet() }
     }
 }

@@ -21,8 +21,10 @@ rm -rf "$ICONSET_DIR"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$MODULE_CACHE_DIR"
 
 cp "$PROJECT_DIR/Info.plist" "$CONTENTS_DIR/Info.plist"
-cp "$ROOT_DIR/IMG_3090.GIF" "$RESOURCES_DIR/IMG_3090.GIF"
-cp "$ROOT_DIR/UntitledArtwork1.gif" "$RESOURCES_DIR/UntitledArtwork1.gif"
+cp "$ROOT_DIR/Sunny.GIF" "$RESOURCES_DIR/Sunny.GIF"
+cp "$ROOT_DIR/Grace.gif" "$RESOURCES_DIR/Grace.gif"
+cp "$ROOT_DIR/Gracie.gif" "$RESOURCES_DIR/Gracie.gif"
+cp "$ROOT_DIR/Speaking Box.png" "$RESOURCES_DIR/Speaking Box.png"
 
 mkdir -p "$ICONSET_DIR"
 sips -z 16 16     "$ICON_PNG" --out "$ICONSET_DIR/icon_16x16.png" >/dev/null
