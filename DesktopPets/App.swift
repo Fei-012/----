@@ -82,7 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ),
         PetDefinition(
             id: "pet2",
-            fileName: "UntitledArtwork1.GIF",
+            fileName: "UntitledArtwork1.gif",
             defaultOrigin: NSPoint(x: 320, y: 640),
             size: NSSize(width: 160, height: 160)
         )

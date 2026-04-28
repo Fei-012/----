@@ -18,7 +18,7 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$MODULE_CACHE_DIR"
 
 cp "$PROJECT_DIR/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$ROOT_DIR/IMG_3090.GIF" "$RESOURCES_DIR/IMG_3090.GIF"
-cp "$ROOT_DIR/UntitledArtwork1.GIF" "$RESOURCES_DIR/UntitledArtwork1.GIF"
+cp "$ROOT_DIR/UntitledArtwork1.gif" "$RESOURCES_DIR/UntitledArtwork1.gif"
 
 swiftc \
   -module-cache-path "$MODULE_CACHE_DIR" \
